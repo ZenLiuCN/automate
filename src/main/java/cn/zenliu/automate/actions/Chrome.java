@@ -15,7 +15,7 @@ import static cn.zenliu.automate.actions.Playwright.PLAYWRIGHT;
  * @since 2024-11-23
  */
 @AutoService(Action.class)
-@Info("initialize a Chrome browser.Must exists only one for each execution.\nPlaywright required.")
+@Info("initialize a Chrome browser.Must exists only one for each execution.playwright required.")
 @Slf4j
 public record Chrome(
         @Info(value = "CDP url", optional = true)
