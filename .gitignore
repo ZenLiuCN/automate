@@ -1,0 +1,6 @@
+.idea/
+.vscode/
+*.iml
+*.zip
+*.png
+target/
