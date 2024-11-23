@@ -19,6 +19,12 @@ import java.util.function.Supplier;
  * @since 2024-11-23
  */
 public interface Conf extends Config {
+    static Conf of(Config c) {
+        return new conf(c);
+    }
+
+    record conf(Config c) implements Conf {
+    }
 
     //region Delegate
     @Override
@@ -329,11 +335,12 @@ public interface Conf extends Config {
     default String rString(String path) {
         return require(path, Config::getString, (String) null);
     }
-    default Map<String,String> stringMap(String path){
+
+    default Map<String, String> stringMap(String path) {
         var o = getObject(path);
         var m = new LinkedHashMap<String, String>();
-        var c=o.toConfig();
-        Conf cf=()->c;
+        var c = o.toConfig();
+        Conf cf = () -> c;
         for (String k : o.keySet()) {
             m.put(k, cf.rString(k));
         }
@@ -381,5 +388,5 @@ public interface Conf extends Config {
                 : maybe(path, Conf::stringMap, null);
     }
 
-    ConfReader<Map<String,String>> MaybeStringMap=(c,p)->stringMap(p,false).apply(c);
+    ConfReader<Map<String, String>> MaybeStringMap = (c, p) -> stringMap(p, false).apply(c);
 }

@@ -94,6 +94,22 @@ public interface Context extends AutoCloseable {
         return var(name).map(x -> type.isInstance(x) ? type.cast(x) : null);
     }
 
+    default <T> T require(String name, Class<T> type) {
+        return var(name, type).orElseThrow(() -> new IllegalStateException("missing required '" + name + "' of " + type));
+    }
+
+    default void require(String name) {
+        if (!vars().containsKey(name)) {
+            throw new IllegalStateException(name + " required, but not exists.");
+        }
+    }
+
+    default void requireNot(String name) {
+        if (vars().containsKey(name)) {
+            throw new IllegalStateException(name + " already exists.");
+        }
+    }
+
     record context(Map<String, AutoCloseable> closable, ConcurrentLinkedQueue<AutoCloseable> closableQueue,
                    Map<String, Object> vars) implements Context {
         context() {

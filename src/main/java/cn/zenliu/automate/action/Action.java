@@ -26,7 +26,16 @@ import java.util.stream.Collectors;
  */
 public interface Action<T extends Action<T>> {
 
-    Optional<Exception> execute(Context ctx);
+    void execute(Context ctx);
+
+    default Optional<Exception> run(Context ctx) {
+        try {
+            execute(ctx);
+            return Optional.empty();
+        } catch (Exception ex) {
+            return Optional.of(ex);
+        }
+    }
 
     static String camel(String pascal) {
         return pascal.substring(0, 1).toLowerCase() + pascal.substring(1);
@@ -81,7 +90,7 @@ public interface Action<T extends Action<T>> {
             if (t != null) {
                 if (t.optional()) b.append('?');
                 if (t.values().length > 0) {
-                    b.append("\t");
+                    b.append("\t//");
                     var x = -1;
                     for (String value : t.values()) {
                         x++;

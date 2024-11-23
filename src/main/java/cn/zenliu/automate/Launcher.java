@@ -11,8 +11,7 @@ import com.typesafe.config.ConfigFactory;
 public class Launcher {
     public static void main(String[] args) {
         Action.ACTIONS.forEach((name, a) -> {
-            System.out.println(name);
-            System.out.println(a.action());
+            System.out.println(name+"=>"+a.action());
             System.out.println(a.usage());
         });
         var c = ConfigFactory.parseString("""

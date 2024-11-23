@@ -6,8 +6,6 @@ import cn.zenliu.automate.notation.Info;
 import com.google.auto.service.AutoService;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Optional;
-
 /**
  * @author Zen.Liu
  * @since 2024-11-23
@@ -27,18 +25,17 @@ public record Inspect(
     }
 
     @Override
-    public Optional<Exception> execute(Context ctx) {
+    public void execute(Context ctx) {
         if (type == null && name.isBlank()) {
             log.info("context {}", ctx);
         } else if (type == null) {
             log.info("var {}: {}", name, ctx.var(name));
         } else switch (type) {
-            case 1 -> log.info("var {}:{} ", name, ctx.var(Playwright.KEY));
-            case 2 -> log.info("var {}:{} ", name, ctx.var(Chrome.KEY));
-            case 3 -> log.info("var {}:{} ", name, ctx.var(Page.PREFIX + name));
-            case 4 -> log.info("var {}:{} ", name, ctx.var(Screen.PREFIX + name));
+            case 1 -> log.info("var {}:{} ", name, ctx.var(Playwrights.PLAYWRIGHT));
+            case 2 -> log.info("var {}:{} ", name, ctx.var(Playwrights.BROWSER));
+            case 3 -> log.info("var {}:{} ", name, ctx.var(Playwrights.PagePrefix + name));
+            case 4 -> log.info("var {}:{} ", name, ctx.var(SikuliX.ScreenPrefix + name));
             default -> log.error("unsupported type {}", type);
         }
-        return Optional.empty();
     }
 }
