@@ -50,8 +50,8 @@
         <!--//region API -->
         <versions.slf4j>2.0.9</versions.slf4j>
         <!--//endregion -->
-        <versions.logback-classic>1.4.11</versions.logback-classic>
-        <launcher>cn.zenliu.automate.Launcher</launcher>
+        <versions.logback-classic>1.4.12</versions.logback-classic>
+        <launcher>cn.zenliu.automate.Cli</launcher>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -373,6 +373,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
+            <version>1.4.12</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>

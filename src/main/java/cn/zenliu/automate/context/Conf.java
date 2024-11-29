@@ -3,7 +3,9 @@ package cn.zenliu.automate.context;
 import cn.zenliu.automate.notation.ConfReader;
 import cn.zenliu.automate.notation.Reader;
 import com.typesafe.config.*;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.time.Period;
@@ -23,7 +25,60 @@ public interface Conf extends Config {
         return new conf(c);
     }
 
+    @SneakyThrows
+    static void execute(Conf global, Logger log, String[] scripts) {
+        try (var ctx = new Context.context(log)) {
+            if (log.isTraceEnabled()) {
+                log.trace("will execute init actions");
+            }
+            for (var act : ctx.use(global)) {
+                if (log.isTraceEnabled()) {
+                    log.trace("execute global init action {}", act.action());
+                }
+                var err = act.run(ctx);
+                if (err.isPresent()) {
+                    var ex = err.get();
+                    log.error("execute {} failure ", act.action(), ex);
+                    throw new RuntimeException("execute '" + act.action() + "' failed: " + ex.getMessage(), ex);
+                }
+            }
+            if (scripts != null && scripts.length > 0) { //! for cli defined files
+                if (log.isTraceEnabled()) {
+                    log.trace("will process scripts {}", (Object) scripts);
+                }
+                for (var act : ctx.files(scripts)) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("execute script case {}", act.action());
+                    }
+                    var err = act.run(ctx);
+                    if (err.isPresent()) {
+                        var ex = err.get();
+                        log.error("execute {} failure ", act.action(), ex);
+                        throw new RuntimeException("execute '" + act.action() + "' failed: " + ex.getMessage(), ex);
+                    }
+                }
+            } else { //! for global defined path
+                var p = global.string("cases").orElseThrow(() -> new IllegalStateException("cases path not defined"));
+                if (log.isTraceEnabled()) {
+                    log.trace("will process cases from path: {}", p);
+                }
+                for (var act : ctx.walk(p)) {
+                    if (log.isTraceEnabled()) {
+                        log.trace("will process cases of {}", act.action());
+                    }
+                    var err = act.run(ctx);
+                    if (err.isPresent()) {
+                        var ex = err.get();
+                        log.error("execute {} failure ", act.action(), ex);
+                        throw new RuntimeException("execute '" + act.action() + "' failed: " + ex.getMessage(), ex);
+                    }
+                }
+            }
+        }
+    }
+
     record conf(Config c) implements Conf {
+
     }
 
     //region Delegate
@@ -309,6 +364,15 @@ public interface Conf extends Config {
 
     Config c();
 
+    default Optional<Set<String>> keys(@Nullable String path) {
+        if (path == null || path.isBlank()) {
+            var c = c();
+            if (c.isEmpty()) return Optional.empty();
+            return Optional.of(c.root().keySet());
+        }
+        return maybe(path, Config::getObject).map(Map::keySet);
+    }
+
     default <T> Optional<T> maybe(String path, BiFunction<Config, String, T> fn) {
         var c = c();
         return c.hasPath(path) ? Optional.of(fn.apply(c, path)) : Optional.empty();
@@ -345,6 +409,18 @@ public interface Conf extends Config {
             m.put(k, cf.rString(k));
         }
         return m;
+    }
+
+    default Optional<String> string(String path) {
+        return maybe(path, Config::getString);
+    }
+
+    default Optional<Conf> object(String path) {
+        return maybe(path, Config::getObject).map(c -> Conf.of(c.toConfig()));
+    }
+
+    default Optional<List<Conf>> objects(String path) {
+        return maybe(path, Config::getObjectList).map(s -> s.stream().map(c -> Conf.of(c.toConfig())).toList());
     }
 
     static <T> Reader<T> required(String path, BiFunction<Conf, String, T> fn) {

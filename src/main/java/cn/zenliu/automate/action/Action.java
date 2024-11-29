@@ -5,6 +5,7 @@ import cn.zenliu.automate.context.Context;
 import cn.zenliu.automate.notation.ConfReader;
 import cn.zenliu.automate.notation.Info;
 import cn.zenliu.automate.notation.Reader;
+import org.slf4j.Logger;
 
 import java.lang.reflect.*;
 import java.util.*;
@@ -26,6 +27,11 @@ import java.util.stream.Collectors;
  */
 public interface Action<T extends Action<T>> {
 
+    static Action<?> parseConf(Conf def, Logger log) {
+        var act = def.string("action").orElseThrow(() -> new IllegalArgumentException("missing action value"));
+        return Objects.requireNonNull(ACTIONS.get(act), () -> "not exists action '" + act + "'").make(def);
+    }
+
     void execute(Context ctx);
 
     default Optional<Exception> run(Context ctx) {
@@ -46,6 +52,10 @@ public interface Action<T extends Action<T>> {
      */
     default String action() {
         return camel(this.getClass().getSimpleName());
+    }
+
+    default String category() {
+        return Optional.of(this.getClass().getDeclaringClass()).map(Class::getSimpleName).orElse("");
     }
 
     /**
@@ -135,8 +145,8 @@ public interface Action<T extends Action<T>> {
                 .max(Comparator.comparingInt(Executable::getParameterCount))
                 .orElseThrow();
         var n = fac.getParameterCount();
-        var annos = fac.getParameterAnnotations();
-        var find = ((IntFunction<Info>) i -> (Info) Arrays.stream(annos[i]).filter(x -> x instanceof Info).findFirst().orElse(null));
+        var ann = fac.getParameterAnnotations();
+        var find = ((IntFunction<Info>) i -> (Info) Arrays.stream(ann[i]).filter(x -> x instanceof Info).findFirst().orElse(null));
         var rs = new Reader<?>[n];
         var i = -1;
         for (var p : fac.getParameters()) {
