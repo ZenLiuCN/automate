@@ -25,9 +25,9 @@ import java.util.stream.Collectors;
  * @author Zen.Liu
  * @since 2024-11-23
  */
-public interface Action<T extends Action<T>> {
+public interface Action {
 
-    static Action<?> parseConf(Conf def, Logger log) {
+    static Action parseConf(Conf def) {
         var act = def.string("action").orElseThrow(() -> new IllegalArgumentException("missing action value"));
         return Objects.requireNonNull(ACTIONS.get(act), () -> "not exists action '" + act + "'").make(def);
     }
@@ -134,13 +134,13 @@ public interface Action<T extends Action<T>> {
      *
      * @param c configuration value
      */
-    @SuppressWarnings("unchecked")
-    default T make(Conf c) {
+
+    default Action make(Conf c) {
         var fn = FAC.computeIfAbsent(action(), a -> buildFactory(a, this.getClass()));
-        return (T) fn.apply(c);
+        return  fn.apply(c);
     }
 
-    static Function<Conf, Action<?>> buildFactory(String name, Class<?> c) {
+    static Function<Conf, Action> buildFactory(String name, Class<?> c) {
         var fac = Arrays.stream(c.getConstructors())
                 .max(Comparator.comparingInt(Executable::getParameterCount))
                 .orElseThrow();
@@ -162,7 +162,7 @@ public interface Action<T extends Action<T>> {
                 a[x] = r.apply(f);
             }
             try {
-                return (Action<?>) fac.newInstance(a);
+                return (Action) fac.newInstance(a);
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
             }
@@ -205,8 +205,8 @@ public interface Action<T extends Action<T>> {
 
     Map<Arg, Reader<?>> READERS = new ConcurrentHashMap<>();
     Map<String, String> INFO = new ConcurrentHashMap<>();
-    Map<String, Function<Conf, Action<?>>> FAC = new ConcurrentHashMap<>();
-    @SuppressWarnings({"rawtypes"})
+    Map<String, Function<Conf, Action>> FAC = new ConcurrentHashMap<>();
+
     Map<String, Action> ACTIONS = ServiceLoader.load(Action.class)
             .stream()
             .map(ServiceLoader.Provider::get)

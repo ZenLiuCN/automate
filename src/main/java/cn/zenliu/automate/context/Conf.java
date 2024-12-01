@@ -464,5 +464,18 @@ public interface Conf extends Config {
                 : maybe(path, Conf::stringMap, null);
     }
 
+    static Reader<Set<Integer>> intSets(String path, boolean req) {
+        return req
+                ? (Reader<Set<Integer>>) required(path, Conf::getIntList).andThen(s -> (Set<Integer>) (new HashSet<>(s)))
+                : (Reader<Set<Integer>>) maybe(path, Conf::getIntList, null).andThen(s -> (Set<Integer>) (new HashSet<>(s)));
+    }
+    static Reader<Set<String>> stringSets(String path, boolean req) {
+        return req
+                ? (Reader<Set<String>>) required(path, Conf::getStringList).andThen(s -> (Set<String>) (new HashSet<>(s)))
+                : (Reader<Set<String>>) maybe(path, Conf::getStringList, null).andThen(s -> (Set<String>) (new HashSet<>(s)));
+    }
+
     ConfReader<Map<String, String>> MaybeStringMap = (c, p) -> stringMap(p, false).apply(c);
+    ConfReader<Set<Integer>> MaybeSetInt = (c, p) -> intSets(p, false).apply(c);
+    ConfReader<Set<String>> MaybeSetString = (c, p) -> stringSets(p, false).apply(c);
 }

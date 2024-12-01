@@ -21,7 +21,7 @@ public interface SikuliX {
             String name,
             @Info(value = "screen index(negative for primary, otherwise is the specific screen)", optional = true)
             Integer id
-    ) implements Action<Screen> {
+    ) implements Action {
 
 
         public Screen() {
@@ -31,7 +31,7 @@ public interface SikuliX {
         @Override
         public void execute(Context ctx) {
             var name = ScreenPrefix + this.name;
-            ctx.requireNot(name);
+            ctx.mustNotExists(name);
             var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("initialize screen " + name);
@@ -51,7 +51,7 @@ public interface SikuliX {
             String name,
             @Info(value = "max wait seconds", optional = true)
             Double await
-    ) implements Action<Match> {
+    ) implements Action {
 
         public Match() {
             this(null, null, null, null);
@@ -80,7 +80,7 @@ public interface SikuliX {
             String color,
             @Info(value = "seconds to highlight", optional = true)
             Double sec
-    ) implements Action<Highlight> {
+    ) implements Action {
 
         public Highlight() {
             this(null, null, null);
@@ -107,7 +107,7 @@ public interface SikuliX {
             String match,
             @Info(value = "color to use (HEX RGB start with #), default red", optional = true)
             String color
-    ) implements Action<HighlightOn> {
+    ) implements Action {
 
         public HighlightOn() {
             this(null, null);
@@ -131,7 +131,7 @@ public interface SikuliX {
     record HighlightOff(
             @Info(value = "match name to use")
             String match
-    ) implements Action<HighlightOff> {
+    ) implements Action {
 
         public HighlightOff() {
             this(null);
@@ -157,7 +157,7 @@ public interface SikuliX {
             Integer x,
             @Info(value = "y offset", optional = true)
             Integer y
-    ) implements Action<Click> {
+    ) implements Action {
 
         public Click() {
             this(null, null, null);
@@ -189,7 +189,7 @@ public interface SikuliX {
             Integer x,
             @Info(value = "y offset of click location, default zero.", optional = true)
             Integer y
-    ) implements Action<Parse> {
+    ) implements Action {
 
         public Parse() {
             this(null, null, null, null);
@@ -224,7 +224,7 @@ public interface SikuliX {
             String name,
             @Info(value = "timeout in seconds")
             double timeout
-    ) implements Action<Expect> {
+    ) implements Action {
 
         public Expect() {
             this(null, null, null, -1);

@@ -45,6 +45,8 @@
         <versions.sikulix.win>1.1.1</versions.sikulix.win>
         <versions.playwright>1.48.0</versions.playwright>
         <versions.picocli>4.7.5</versions.picocli>
+        <versions.jool>0.9.15</versions.jool>
+
         <!--//endregion -->
 
         <!--//region API -->
@@ -371,9 +373,13 @@
             <artifactId>sikulixapi</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jool</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.4.12</version>
+
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>

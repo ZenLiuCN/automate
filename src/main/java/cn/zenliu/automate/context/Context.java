@@ -102,13 +102,17 @@ public interface Context extends AutoCloseable {
         return var(name, type).orElseThrow(() -> new IllegalStateException("missing required '" + name + "' of " + type));
     }
 
-    default void require(String name) {
+    default <T> void mustExists(String name, Class<T> type) {
+        var(name, type).orElseThrow(() -> new IllegalStateException("missing required '" + name + "' of " + type));
+    }
+
+    default void mustExists(String name) {
         if (!vars().containsKey(name)) {
             throw new IllegalStateException(name + " required, but not exists.");
         }
     }
 
-    default void requireNot(String name) {
+    default void mustNotExists(String name) {
         if (vars().containsKey(name)) {
             throw new IllegalStateException(name + " already exists.");
         }
@@ -127,10 +131,10 @@ public interface Context extends AutoCloseable {
 
         record ActionIter(
                 List<Conf> define,
-                List<Action<?>> src,
+                List<Action> src,
                 Logger log,
                 int[] p
-        ) implements Iterator<Action<?>> {
+        ) implements Iterator<Action> {
             ActionIter(List<Conf> define, Logger log) {
                 this(define, new ArrayList<>(define.size()), log, new int[]{0});
             }
@@ -141,37 +145,37 @@ public interface Context extends AutoCloseable {
             }
 
             @Override
-            public Action<?> next() {
+            public Action next() {
                 var def = define.get(p[0]);
-                var act = Action.parseConf(def, log);
+                var act = Action.parseConf(def);
                 p[0]++;
                 src.add(act);
                 return act;
             }
         }
 
-        public Action<?> parseFile(String file) {
+        public Action parseFile(String file) {
             if (log.isTraceEnabled()) log.trace("parse case file: {} ", file);
             var fx = new File(file);
             var name = fx.getName().transform(x -> x.substring(0, x.length() - 5));
             var f = Conf.of(ConfigFactory.parseFile(fx).resolve());
             name = f.string("name").orElse(name);
-            var action = new ArrayList<Action<?>>();
+            var action = new ArrayList<Action>();
             var vars = new HashMap<String, Object>();
-            f.objects("init").ifPresent(o -> o.forEach(c -> action.add(Action.parseConf(c, log))));
+            f.objects("init").ifPresent(o -> o.forEach(c -> action.add(Action.parseConf(c))));
             f.object("vars").ifPresent(v -> v.keys(null).ifPresent(keys -> keys.forEach(key -> vars.put(key, v.getAnyRef(key)))));
             var actions = f.objects("actions").orElseThrow(() -> new IllegalArgumentException("missing required actions"));
             if (actions.isEmpty()) throw new IllegalArgumentException("actions should not be empty");
-            actions.forEach(c -> action.add(Action.parseConf(c, log)));
+            actions.forEach(c -> action.add(Action.parseConf(c)));
             return new Case(file, name, action, vars);
         }
 
         record Case(
                 String file,
                 String name,
-                List<Action<?>> actions,
+                List<Action> actions,
                 Map<String, Object> vars
-        ) implements Action<Case> {
+        ) implements Action {
 
             @Override
             public String action() {
@@ -198,7 +202,7 @@ public interface Context extends AutoCloseable {
             }
         }
 
-        public Iterable<Action<?>> use(Conf global) {
+        public Iterable<Action> use(Conf global) {
             if (log.isTraceEnabled()) log.trace("apply global config");
             var init = global.objects("init").orElse(null);
             if (log.isTraceEnabled() && init == null) {
@@ -217,25 +221,24 @@ public interface Context extends AutoCloseable {
             return iter == null ? List.of() : () -> iter;
         }
 
-        @SuppressWarnings("unchecked")
-        public Iterable<Action<?>> files(String[] scripts) {
+
+        public Iterable<Action> files(String[] scripts) {
             if (scripts == null || scripts.length == 0) {
                 log.error("no script defined");
                 return List.of();
             }
             if (log.isTraceEnabled()) log.trace("parse scripts {}", (Object) scripts);
-            return (Iterable<Action<?>>) (Iterable<?>) Arrays
+            return  Arrays
                     .stream(scripts)
                     .map(this::parseFile)
                     .toList();
         }
 
-        @SuppressWarnings("unchecked")
         @SneakyThrows
-        public Iterable<Action<?>> walk(String path) {
+        public Iterable<Action> walk(String path) {
             if (log.isTraceEnabled()) log.trace("parse cases folder {}", path);
             try (var s = Files.walk(Paths.get(path))) {
-                return (Iterable<Action<?>>) (Iterable<?>) s
+                return s
                         .filter(Files::isRegularFile)
                         .filter(x -> x.toFile().getName().endsWith(".conf"))
                         .map(x -> parseFile(x.toString()))
