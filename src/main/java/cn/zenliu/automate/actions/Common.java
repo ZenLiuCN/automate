@@ -5,6 +5,10 @@ import cn.zenliu.automate.context.Conf;
 import cn.zenliu.automate.context.Context;
 import cn.zenliu.automate.notation.Info;
 import com.google.auto.service.AutoService;
+import lombok.SneakyThrows;
+import org.slf4j.Logger;
+
+import java.time.Duration;
 
 /**
  * @author Zen.Liu
@@ -32,8 +36,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
-            var log = ctx.log();
+        public void execute(Context ctx ,Logger log) {
             if (type == null && name.isBlank()) {
                 log.info("{}", ctx);
             } else if (type == null) {
@@ -60,7 +63,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             ctx.invalidate(name);
         }
     }
@@ -79,7 +82,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             if (!ctx.vars().containsKey(name)) {
                 ctx.put(name, false);
                 return;
@@ -107,7 +110,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             if (!ctx.vars().containsKey(name)) {
                 throw new IllegalStateException(message);
             }
@@ -131,7 +134,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             if (ctx.var(name, Boolean.class).filter(x -> x).isEmpty()) {
                 throw new IllegalStateException(message);
             }
@@ -152,7 +155,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             if (ctx.var(name, Boolean.class).filter(x -> !x).isEmpty()) {
                 throw new IllegalStateException(message);
             }
@@ -177,7 +180,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             if (ctx.var(name, String.class).filter(x -> regex != null ? x.matches(value) : x.equals(value)).isEmpty()) {
                 throw new IllegalStateException(message);
             }
@@ -204,7 +207,7 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx ,Logger log) {
             ctx.put(name, ctx.var(var, String.class).filter(x -> regex != null ? x.matches(value) : x.equals(value)).isEmpty());
         }
     }
@@ -234,12 +237,32 @@ public interface Common {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx , Logger log) {
             if (ctx.require(var, Boolean.class)) {
-                whenTrue.execute(ctx);
+                whenTrue.execute(ctx,log);
             } else {
-                whenFalse.execute(ctx);
+                whenFalse.execute(ctx,log);
             }
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("sleep for spec time")
+    record Sleep(
+            @Info(value = "how long to sleep")
+            Duration duration
+
+    ) implements Action {
+
+
+        public Sleep() {
+            this(null);
+        }
+
+        @SneakyThrows
+        @Override
+        public void execute(Context ctx ,Logger log) {
+            Thread.sleep(duration.toMillis());
         }
     }
 }

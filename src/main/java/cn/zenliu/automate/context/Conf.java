@@ -27,7 +27,9 @@ public interface Conf extends Config {
 
     @SneakyThrows
     static void execute(Conf global, Logger log, String[] scripts) {
-        try (var ctx = new Context.context(log)) {
+        var debug = global.bool("debug").orElse(false);
+        var ctx = new Context.context(log);
+        try {
             if (log.isTraceEnabled()) {
                 log.trace("will execute init actions");
             }
@@ -74,8 +76,14 @@ public interface Conf extends Config {
                     }
                 }
             }
+        } finally {
+            if (!debug) {
+                log.trace("close context");
+                ctx.close();
+            }
         }
     }
+
 
     record conf(Config c) implements Conf {
 
@@ -419,6 +427,10 @@ public interface Conf extends Config {
         return maybe(path, Config::getObject).map(c -> Conf.of(c.toConfig()));
     }
 
+    default Optional<Boolean> bool(String path) {
+        return maybe(path, Config::getBoolean);
+    }
+
     default Optional<List<Conf>> objects(String path) {
         return maybe(path, Config::getObjectList).map(s -> s.stream().map(c -> Conf.of(c.toConfig())).toList());
     }
@@ -440,6 +452,12 @@ public interface Conf extends Config {
                 : maybe(path, Config::getLong, null);
     }
 
+    static Reader<Duration> readDuration(String path, boolean req) {
+        return req
+                ? required(path, Config::getDuration)
+                : maybe(path, Config::getDuration, null);
+    }
+
     static Reader<Integer> readInteger(String path, boolean req) {
         return req
                 ? required(path, Config::getInt)
@@ -458,6 +476,18 @@ public interface Conf extends Config {
                 : maybe(path, Config::getBoolean, null);
     }
 
+    static Reader<Float> readFloat(String path, boolean req) {
+        return req
+                ? (Reader<Float>) required(path, Config::getDouble).andThen(Double::floatValue)
+                : (Reader<Float>) maybe(path, Config::getDouble, null).andThen(d -> d == null ? null : d.floatValue());
+    }
+
+    static Reader<Double> readDouble(String path, boolean req) {
+        return req
+                ? required(path, Config::getDouble)
+                : maybe(path, Config::getDouble, null);
+    }
+
     static Reader<Map<String, String>> stringMap(String path, boolean req) {
         return req
                 ? required(path, Conf::stringMap)
@@ -466,13 +496,26 @@ public interface Conf extends Config {
 
     static Reader<Set<Integer>> intSets(String path, boolean req) {
         return req
-                ? (Reader<Set<Integer>>) required(path, Conf::getIntList).andThen(s -> (Set<Integer>) (new HashSet<>(s)))
-                : (Reader<Set<Integer>>) maybe(path, Conf::getIntList, null).andThen(s -> (Set<Integer>) (new HashSet<>(s)));
+                ? required(path, (c, p) -> {
+            var v = c.getIntList(p);
+            return v == null || v.isEmpty() ? null : new HashSet<>(v);
+        })
+                : maybe(path, (c, p) -> {
+            var v = c.getIntList(p);
+            return v == null || v.isEmpty() ? null : new HashSet<>(v);
+        }, null);
     }
+
     static Reader<Set<String>> stringSets(String path, boolean req) {
         return req
-                ? (Reader<Set<String>>) required(path, Conf::getStringList).andThen(s -> (Set<String>) (new HashSet<>(s)))
-                : (Reader<Set<String>>) maybe(path, Conf::getStringList, null).andThen(s -> (Set<String>) (new HashSet<>(s)));
+                ? required(path, (c, p) -> {
+            var v = c.getStringList(p);
+            return v == null || v.isEmpty() ? null : new HashSet<>(v);
+        })
+                : maybe(path, (c, p) -> {
+            var v = c.getStringList(p);
+            return v == null || v.isEmpty() ? null : new HashSet<>(v);
+        }, null);
     }
 
     ConfReader<Map<String, String>> MaybeStringMap = (c, p) -> stringMap(p, false).apply(c);

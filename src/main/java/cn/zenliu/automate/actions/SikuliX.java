@@ -5,6 +5,9 @@ import cn.zenliu.automate.context.Context;
 import cn.zenliu.automate.notation.Info;
 import com.google.auto.service.AutoService;
 import lombok.SneakyThrows;
+import org.slf4j.Logger;
+
+import java.nio.file.Paths;
 
 /**
  * @author Zen.Liu
@@ -29,10 +32,9 @@ public interface SikuliX {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var name = ScreenPrefix + this.name;
             ctx.mustNotExists(name);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("initialize screen " + name);
             var c = id == null ? new org.sikuli.script.Screen() : new org.sikuli.script.Screen(id);
@@ -59,14 +61,15 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var sc = ctx.require(ScreenPrefix + this.screen, org.sikuli.script.Screen.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("match pattern {} on screen {}", pattern, this.screen);
             if (await != null)
                 sc.setAutoWaitTimeout(await);
-            var match = sc.find(pattern);
+            var p = pattern;
+            if (pattern.startsWith("./")) p = Paths.get(p).toAbsolutePath().normalize().toString();
+            var match = sc.wait(p);
             ctx.put(this.name, MatchPrefix + match);
         }
     }
@@ -88,9 +91,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var m = ctx.require(MatchPrefix + match, org.sikuli.script.Match.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("highlight match {} on screen", match);
             if (sec != null && color != null) m.highlight(sec, color);
@@ -115,9 +117,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var m = ctx.require(MatchPrefix + match, org.sikuli.script.Match.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("highlight on for match {} on screen", match);
 
@@ -139,9 +140,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var m = ctx.require(MatchPrefix + match, org.sikuli.script.Match.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("highlight off for match {} on screen", match);
             m.highlightOff();
@@ -165,9 +165,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var m = ctx.require(MatchPrefix + match, org.sikuli.script.Match.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("click match {} on screen", match);
             if (x != null || y != null) {
@@ -197,9 +196,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var m = ctx.require(MatchPrefix + match, org.sikuli.script.Match.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("parse {} to match {} on screen", text, match);
             if (x != null || y != null) {
@@ -232,9 +230,8 @@ public interface SikuliX {
 
         @SneakyThrows
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var sc = ctx.require(ScreenPrefix + this.screen, org.sikuli.script.Screen.class);
-            var log = ctx.log();
             if (log.isTraceEnabled())
                 log.trace("match pattern {} on screen {}", pattern, this.screen);
             var match = sc.exists(pattern, timeout);

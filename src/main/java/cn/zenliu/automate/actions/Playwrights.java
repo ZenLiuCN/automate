@@ -7,10 +7,11 @@ import cn.zenliu.automate.notation.Info;
 import com.google.auto.service.AutoService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.ElementHandle;
+import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.*;
+import org.slf4j.Logger;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
@@ -20,6 +21,7 @@ import java.util.Set;
  */
 @SuppressWarnings("unused")
 public interface Playwrights {
+    String CONTEXT = "context";
     String BROWSER = "Browser";
     String PLAYWRIGHT = "Playwright";
     String PagePrefix = "Page::";
@@ -39,10 +41,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(PLAYWRIGHT);
             ctx.mustNotExists(BROWSER);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("initialize chrome browser");
             var p = ctx.require(PLAYWRIGHT, com.microsoft.playwright.Playwright.class);
             var c = cdp != null && !cdp.isBlank() ?
@@ -54,6 +55,55 @@ public interface Playwrights {
 
         }
     }
+
+/*  @AutoService(Action.class)
+    @Info("create new browser context. playwright required. Unique named as " + CONTEXT + ".")
+    record ContextCreate(
+            @Info(value = "simulation touch", optional = true)
+            Boolean touch,
+            @Info(value = "simulation mobile", optional = true)
+            Boolean mobile,
+            @Info(value = "simulation device scale", optional = true)
+            Double scale,
+            @Info(value = "simulation view port width", optional = true)
+            Integer vwWidth,
+            @Info(value = "simulation view port height", optional = true)
+            Integer vwHeight,
+            @Info(value = "window width", optional = true)
+            Integer width,
+            @Info(value = "window height", optional = true)
+            Integer height,
+            @Info(value = "timeout", optional = true)
+            Double timeout
+    ) implements Action {
+        public ContextCreate() {
+            this(null, null, null, null,null, null, null, null);
+        }
+
+        @Override
+        public void execute(Context ctx ,Logger log) {
+            ctx.mustExists(PLAYWRIGHT);
+            ctx.mustExists(BROWSER);
+            ctx.mustNotExists(CONTEXT);
+            if (log.isTraceEnabled()) log.trace("initialize browser context");
+            var p = ctx.require(BROWSER, Browser.class);
+            var opt = new Browser.NewContextOptions();
+            if (touch != null) opt.setHasTouch(touch);
+            if (mobile != null) opt.setIsMobile(mobile);
+            if (scale != null) opt.setDeviceScaleFactor(scale);
+            if (vwWidth != null && vwHeight != null) opt.setViewportSize(vwWidth, vwHeight);
+            else if (vwWidth != null || vwHeight != null)
+                throw new IllegalStateException("both vwHeight and vwWidth should not null");
+            if (width != null && height != null) opt.setScreenSize(width, height);
+            else if (width != null || height != null) {
+                throw new IllegalStateException("viewport width and height must both not null");
+            }
+            if(timeout!=null) opt.timeout
+            var cx = p.newContext(opt);
+            ctx.put(CONTEXT, cx);
+
+        }
+    }*/
 
     @AutoService(Action.class)
     @Info("initialize playwright. Unique named as " + PLAYWRIGHT + ".")
@@ -68,9 +118,8 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustNotExists(PLAYWRIGHT);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("initialize playwright");
             com.microsoft.playwright.Playwright p;
             if (property != null && !property.isEmpty()) {
@@ -89,27 +138,51 @@ public interface Playwrights {
             String name,
             @Info(value = "page url", optional = true)
             String url,
+            @Info(value = "simulation user agent", optional = true)
+            String ua,
             @Info(value = "dark mode", optional = true)
             Boolean dark,
-            @Info(value = "mobile mode", optional = true)
-            Boolean mobile
+            @Info(value = "simulation touch", optional = true)
+            Boolean touch,
+            @Info(value = "simulation mobile", optional = true)
+            Boolean mobile,
+            @Info(value = "simulation device scale", optional = true)
+            Double scale,
+            @Info(value = "simulation view port width", optional = true)
+            Integer vwWidth,
+            @Info(value = "simulation view port height", optional = true)
+            Integer vwHeight,
+            @Info(value = "window width", optional = true)
+            Integer width,
+            @Info(value = "window height", optional = true)
+            Integer height
     ) implements Action {
 
         public PageOpen() {
-            this(null, null, null, null);
+            this(null, null, null, null, null, null, null, null, null, null, null);
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var name = PagePrefix + this.name;
             ctx.mustExists(BROWSER);
             ctx.mustNotExists(name);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("open page {} ", name);
             var p = ctx.require(BROWSER, Browser.class);
             var opt = new Browser.NewPageOptions();
             if (dark != null) opt.setColorScheme(dark ? ColorScheme.DARK : ColorScheme.LIGHT);
             if (mobile != null) opt.setIsMobile(mobile);
+            if (touch != null) opt.setHasTouch(touch);
+            if (scale != null) opt.setDeviceScaleFactor(scale);
+            if (ua != null && !ua.isBlank()) opt.setUserAgent(ua);
+            if (vwWidth != null && vwHeight != null) opt.setViewportSize(vwWidth, vwHeight);
+            else if (vwWidth != null || vwHeight != null) {
+                throw new IllegalStateException("viewport width and height must both not null");
+            }
+            if (width != null && height != null) opt.setScreenSize(width, height);
+            else if (width != null || height != null) {
+                throw new IllegalStateException("viewport width and height must both not null");
+            }
             var c = p.newPage(opt);
             if (this.url != null && !this.url.isBlank()) c.navigate(url);
             ctx.put(name, c);
@@ -128,10 +201,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             ctx.mustExists(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("close page {} ", page);
             ctx.invalidate(PagePrefix + page);
         }
@@ -155,10 +227,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("navigate page {} to {} ", page, url);
             var res = timeout != null ? p.navigate(url, new Page.NavigateOptions().setTimeout(timeout)) : p.navigate(url);
             if (response != null && !response.isBlank()) ctx.put(response, res);
@@ -181,11 +252,10 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             var name = PagePrefix + this.name;
             ctx.mustExists(BROWSER);
             ctx.mustNotExists(name);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch page {} ", name);
             var p = ctx.require(BROWSER, Browser.class);
             var cx = p.contexts().get(context == null ? 0 : context);
@@ -210,12 +280,13 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
-            if (log.isTraceEnabled()) log.trace("fetch page {} url ", name);
-            ctx.put(name, p.url());
+            if (log.isTraceEnabled()) log.trace("fetch page {} url ", page);
+            if (!ctx.put(name, p.url())) {
+                throw new IllegalStateException("argument '" + name + "' already exists:  " + ctx);
+            }
         }
     }
 
@@ -262,10 +333,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("click {} on page {}", selector, page);
             var opt = new Page.ClickOptions();
             if (strict != null) opt.strict = strict;
@@ -320,10 +390,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("dbclick {} on page {}", selector, page);
             var opt = new Page.DblclickOptions();
             if (strict != null) opt.strict = strict;
@@ -364,10 +433,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("check {} on page {} ", selector, page);
             var opt = new Page.CheckOptions();
             if (strict != null) opt.strict = strict;
@@ -413,10 +481,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("drag {} and drop {} on page {}", src, tar, page);
             var opt = new Page.DragAndDropOptions();
             if (strict != null) opt.strict = strict;
@@ -459,10 +526,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("select {} on page {} ", selector, page);
             var opt = new Page.WaitForSelectorOptions();
             if (strict != null) opt.strict = strict;
@@ -475,7 +541,136 @@ public interface Playwrights {
 
     @AutoService(Action.class)
     @Info("select and store a locator on page by label.")
-    record PageLocateLabel(
+    record LocateRole(
+            @Info(value = "page name to use, automatic prefix with '" + PagePrefix + "'")
+            String page,
+            @Info(value = "aria role", values = {
+                    "ALERT",
+                    "ALERTDIALOG",
+                    "APPLICATION",
+                    "ARTICLE",
+                    "BANNER",
+                    "BLOCKQUOTE",
+                    "BUTTON",
+                    "CAPTION",
+                    "CELL",
+                    "CHECKBOX",
+                    "CODE",
+                    "COLUMNHEADER",
+                    "COMBOBOX",
+                    "COMPLEMENTARY",
+                    "CONTENTINFO",
+                    "DEFINITION",
+                    "DELETION",
+                    "DIALOG",
+                    "DIRECTORY",
+                    "DOCUMENT",
+                    "EMPHASIS",
+                    "FEED",
+                    "FIGURE",
+                    "FORM",
+                    "GENERIC",
+                    "GRID",
+                    "GRIDCELL",
+                    "GROUP",
+                    "HEADING",
+                    "IMG",
+                    "INSERTION",
+                    "LINK",
+                    "LIST",
+                    "LISTBOX",
+                    "LISTITEM",
+                    "LOG",
+                    "MAIN",
+                    "MARQUEE",
+                    "MATH",
+                    "METER",
+                    "MENU",
+                    "MENUBAR",
+                    "MENUITEM",
+                    "MENUITEMCHECKBOX",
+                    "MENUITEMRADIO",
+                    "NAVIGATION",
+                    "NONE",
+                    "NOTE",
+                    "OPTION",
+                    "PARAGRAPH",
+                    "PRESENTATION",
+                    "PROGRESSBAR",
+                    "RADIO",
+                    "RADIOGROUP",
+                    "REGION",
+                    "ROW",
+                    "ROWGROUP",
+                    "ROWHEADER",
+                    "SCROLLBAR",
+                    "SEARCH",
+                    "SEARCHBOX",
+                    "SEPARATOR",
+                    "SLIDER",
+                    "SPINBUTTON",
+                    "STATUS",
+                    "STRONG",
+                    "SUBSCRIPT",
+                    "SUPERSCRIPT",
+                    "SWITCH",
+                    "TAB",
+                    "TABLE",
+                    "TABLIST",
+                    "TABPANEL",
+                    "TERM",
+                    "TEXTBOX",
+                    "TIME",
+                    "TIMER",
+                    "TOOLBAR",
+                    "TOOLTIP",
+                    "TREE",
+                    "TREEGRID",
+                    "TREEITEM"
+            })
+            String role,
+            @Info(value = "name of locator to store in context, which will prefix with '" + LocatorPrefix + "'")
+            String name,
+            @Info(value = "text of element", optional = true)
+            String text,
+            @Info(value = "place holder of element", optional = true)
+            String placeHolder,
+            @Info(value = "exact match", optional = true)
+            Boolean exact
+    ) implements Action {
+        public LocateRole() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(PagePrefix + page, Page.class);
+            if (log.isTraceEnabled()) log.trace("select by role {} on page {} ", role, page);
+            var opt = new Page.GetByRoleOptions();
+            if (exact != null) opt.exact = exact;
+            var ele = p.getByRole(AriaRole.valueOf(role), opt);
+            if (exact == null || !exact) {
+                if (text != null && !text.isBlank()) {
+                    ele = ele.filter(new Locator.FilterOptions().setHasText(text));
+                }
+                if (placeHolder != null && !placeHolder.isBlank()) {
+                    ele = ele.filter(new Locator.FilterOptions().setHas(p.getByPlaceholder(placeHolder)));
+                }
+            }
+            if (ele != null) ctx.put(LocatorPrefix + name, ele);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("select and store a locator on page by label.")
+    record LocateLabel(
             @Info(value = "page name to use, automatic prefix with '" + PagePrefix + "'")
             String page,
             @Info(value = "pattern of element label")
@@ -485,7 +680,7 @@ public interface Playwrights {
             @Info(value = "exact match", optional = true)
             Boolean exact
     ) implements Action {
-        public PageLocateLabel() {
+        public LocateLabel() {
             this(null,
                     null,
                     null,
@@ -494,10 +689,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("select by label {} on page {} ", pattern, page);
             var opt = new Page.GetByLabelOptions();
             if (exact != null) opt.exact = exact;
@@ -508,18 +702,24 @@ public interface Playwrights {
 
     @AutoService(Action.class)
     @Info("select and store a locator on page by text.")
-    record PageLocateText(
+    record LocateText(
             @Info(value = "page name to use, automatic prefix with '" + PagePrefix + "'")
             String page,
             @Info(value = "pattern of element label")
             String pattern,
             @Info(value = "name of locator to store in context, which will prefix with '" + LocatorPrefix + "'")
             String name,
+            @Info(value = "html ariaRole to pick, use when exact is false", optional = true)
+            String ariaRole,
+            @Info(value = "html aria name to pick, use when exact is false and  aria role is provided.", optional = true)
+            String ariaName,
             @Info(value = "exact match", optional = true)
             Boolean exact
     ) implements Action {
-        public PageLocateText() {
+        public LocateText() {
             this(null,
+                    null,
+                    null,
                     null,
                     null,
                     null
@@ -527,21 +727,80 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
-            if (log.isTraceEnabled()) log.trace("select by label {} on page {} ", pattern, page);
+            if (log.isTraceEnabled()) log.trace("select by text {} on page {} ", pattern, page);
             var opt = new Page.GetByTextOptions();
             if (exact != null) opt.exact = exact;
             var ele = p.getByText(pattern, opt);
+            if ((exact == null || !exact)) {
+                if (ariaRole != null && !ariaRole.isBlank()) {
+                    if (ariaName != null && !ariaName.isBlank()) {
+                        ele = ele.filter(new Locator.FilterOptions()
+                                .setHas(p.getByRole(AriaRole.valueOf(ariaRole.toUpperCase()), new Page.GetByRoleOptions().setName(ariaName))));
+                    } else {
+                        ele = ele.filter(new Locator.FilterOptions()
+                                .setHas(p.getByRole(AriaRole.valueOf(ariaRole.toUpperCase()))));
+                    }
+                }
+            }
+            if (ele != null) ctx.put(LocatorPrefix + name, ele);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("select and store a locator on page by placeholder.")
+    record LocatePlaceholder(
+            @Info(value = "page name to use, automatic prefix with '" + PagePrefix + "'")
+            String page,
+            @Info(value = "value of element placeholder")
+            String pattern,
+            @Info(value = "name of locator to store in context, which will prefix with '" + LocatorPrefix + "'")
+            String name,
+            @Info(value = "html ariaRole to pick, use when exact is false", optional = true)
+            String ariaRole,
+            @Info(value = "html aria name to pick, use when exact is false and  aria role is provided.", optional = true)
+            String ariaName,
+            @Info(value = "exact match", optional = true)
+            Boolean exact
+    ) implements Action {
+        public LocatePlaceholder() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(PagePrefix + page, Page.class);
+            if (log.isTraceEnabled()) log.trace("select by text {} on page {} ", pattern, page);
+            var opt = new Page.GetByPlaceholderOptions();
+            if (exact != null) opt.exact = exact;
+            var ele = p.getByPlaceholder(pattern, opt);
+            if ((exact == null || !exact)) {
+                if (ariaRole != null && !ariaRole.isBlank()) {
+                    if (ariaName != null && !ariaName.isBlank()) {
+                        ele = ele.filter(new Locator.FilterOptions()
+                                .setHas(p.getByRole(AriaRole.valueOf(ariaRole.toUpperCase()), new Page.GetByRoleOptions().setName(ariaName))));
+                    } else {
+                        ele = ele.filter(new Locator.FilterOptions()
+                                .setHas(p.getByRole(AriaRole.valueOf(ariaRole.toUpperCase()))));
+                    }
+                }
+            }
             if (ele != null) ctx.put(LocatorPrefix + name, ele);
         }
     }
 
     @AutoService(Action.class)
     @Info("select and store a locator on page by text.")
-    record PageLocateTitle(
+    record LocateTitle(
             @Info(value = "page name to use, automatic prefix with '" + PagePrefix + "'")
             String page,
             @Info(value = "pattern of element title")
@@ -551,7 +810,7 @@ public interface Playwrights {
             @Info(value = "exact match", optional = true)
             Boolean exact
     ) implements Action {
-        public PageLocateTitle() {
+        public LocateTitle() {
             this(null,
                     null,
                     null,
@@ -560,10 +819,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(PagePrefix + page, Page.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("select by label {} on page {} ", pattern, page);
             var opt = new Page.GetByTitleOptions();
             if (exact != null) opt.exact = exact;
@@ -571,6 +829,267 @@ public interface Playwrights {
             if (ele != null) ctx.put(LocatorPrefix + name, ele);
         }
     }
+
+    @AutoService(Action.class)
+    @Info("click a stored locate on page.")
+    record LocateClick(
+            @Info(value = "locate name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "button to click", optional = true, values = {
+                    "LEFT: left mouse button",
+                    "RIGHT: right mouse button",
+                    "MIDDLE: middle mouse button",
+            })
+            String button,
+            @Info(value = "times to click", optional = true)
+            Integer times,
+            @Info(value = "x position relative to top left", optional = true)
+            Double x,
+            @Info(value = "y position relative to top left", optional = true)
+            Double y,
+            @Info(value = "delay ms of button down and button up,default is zero", optional = true)
+            Double delay,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout,
+            @Info(value = "keyboard modifier", optional = true, values = {
+                    "ALT: ALT key",
+                    "CONTROL: CTRL key",
+                    "CONTROLORMETA: CTRL key | META/WIN key",
+                    "META: META/WIN key",
+                    "SHIFT: SHIFT key",
+            }, read = Conf.class, from = "MaybeSetString")
+            Set<String> modifier
+    ) implements Action {
+        public LocateClick() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("click locator {} ", locate);
+            var opt = new Locator.ClickOptions();
+            if (button != null) opt.button = MouseButton.valueOf(button);
+            if (times != null) opt.setClickCount(times);
+            if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
+            if (timeout != null) opt.setTimeout(timeout);
+            if (delay != null) opt.setDelay(delay);
+            if (modifier != null && !modifier.isEmpty())
+                opt.setModifiers(modifier.stream().map(KeyboardModifier::valueOf).toList());
+            p.click(opt);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("tap a stored locate on page.")
+    record LocateTap(
+            @Info(value = "locate name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "x position relative to top left", optional = true)
+            Double x,
+            @Info(value = "y position relative to top left", optional = true)
+            Double y,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout,
+            @Info(value = "keyboard modifier", optional = true, values = {
+                    "ALT: ALT key",
+                    "CONTROL: CTRL key",
+                    "CONTROLORMETA: CTRL key | META/WIN key",
+                    "META: META/WIN key",
+                    "SHIFT: SHIFT key",
+            }, read = Conf.class, from = "MaybeSetString")
+            Set<String> modifier
+    ) implements Action {
+        public LocateTap() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("click locator {} ", locate);
+            var opt = new Locator.TapOptions();
+            if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
+            if (timeout != null) opt.setTimeout(timeout);
+            if (modifier != null && !modifier.isEmpty())
+                opt.setModifiers(modifier.stream().map(KeyboardModifier::valueOf).toList());
+            p.tap(opt);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("double click a stored locator on page.")
+    record LocateDbClick(
+            @Info(value = "locator name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "button to click", optional = true, values = {
+                    "LEFT: left mouse button",
+                    "RIGHT: right mouse button",
+                    "MIDDLE: middle mouse button",
+            })
+            String button,
+            @Info(value = "x position relative to top left", optional = true)
+            Double x,
+            @Info(value = "y position relative to top left", optional = true)
+            Double y,
+            @Info(value = "delay ms of button down and button up,default is zero", optional = true)
+            Double delay,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout,
+            @Info(value = "keyboard modifier", optional = true, values = {
+                    "ALT: ALT key",
+                    "CONTROL: CTRL key",
+                    "CONTROLORMETA: CTRL key | META/WIN key",
+                    "META: META/WIN key",
+                    "SHIFT: SHIFT key",
+            }, read = Conf.class, from = "MaybeSetString")
+            Set<String> modifier
+    ) implements Action {
+        public LocateDbClick() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("dbclick locator {} ", locate);
+            var opt = new Locator.DblclickOptions();
+            if (button != null) opt.button = MouseButton.valueOf(button);
+            if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
+            if (timeout != null) opt.setTimeout(timeout);
+            if (delay != null) opt.setDelay(delay);
+            if (modifier != null && !modifier.isEmpty())
+                opt.setModifiers(modifier.stream().map(KeyboardModifier::valueOf).toList());
+            p.dblclick(opt);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("check a stored locator on page.")
+    record LocateCheck(
+            @Info(value = "locator name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "x position relative to top left", optional = true)
+            Double x,
+            @Info(value = "y position relative to top left", optional = true)
+            Double y,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout
+    ) implements Action {
+        public LocateCheck() {
+            this(null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("check locate {} ", locate);
+            var opt = new Locator.CheckOptions();
+            if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
+            if (timeout != null) opt.setTimeout(timeout);
+            p.check(opt);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("hover on a stored locator on page.")
+    record LocateHover(
+            @Info(value = "locator name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "x position relative to top left", optional = true)
+            Double x,
+            @Info(value = "y position relative to top left", optional = true)
+            Double y,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout,
+            @Info(value = "keyboard modifier", optional = true, values = {
+                    "ALT: ALT key",
+                    "CONTROL: CTRL key",
+                    "CONTROLORMETA: CTRL key | META/WIN key",
+                    "META: META/WIN key",
+                    "SHIFT: SHIFT key",
+            }, read = Conf.class, from = "MaybeSetString")
+            Set<String> modifier
+    ) implements Action {
+        public LocateHover() {
+            this(null,
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("hover element {} ", locate);
+            var opt = new Locator.HoverOptions();
+            if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
+            if (timeout != null) opt.setTimeout(timeout);
+            if (modifier != null && !modifier.isEmpty())
+                opt.setModifiers(modifier.stream().map(KeyboardModifier::valueOf).toList());
+            p.hover(opt);
+        }
+    }
+
+    @AutoService(Action.class)
+    @Info("fill value to a stored input locator on page.")
+    record LocateFill(
+            @Info(value = "locate name to use, automatic prefix with '" + LocatorPrefix + "'")
+            String locate,
+            @Info(value = "text value")
+            String text,
+            @Info(value = "timeout of action, default 30s.", optional = true)
+            Double timeout
+    ) implements Action {
+        public LocateFill() {
+            this(null,
+                    null,
+                    null
+            );
+        }
+
+        @Override
+        public void execute(Context ctx, Logger log) {
+            ctx.mustExists(BROWSER);
+            var p = ctx.require(ElementPrefix + locate, Locator.class);
+            if (log.isTraceEnabled()) log.trace("fill locate {} ", locate);
+            var opt = new Locator.FillOptions();
+            if (timeout != null) opt.setTimeout(timeout);
+            p.fill(text, opt);
+        }
+    }
+
 
     @AutoService(Action.class)
     @Info("click a stored element on page.")
@@ -615,10 +1134,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(ElementPrefix + ele, ElementHandle.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch element {} ", ele);
             var opt = new ElementHandle.ClickOptions();
             if (button != null) opt.button = MouseButton.valueOf(button);
@@ -672,10 +1190,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(ElementPrefix + ele, ElementHandle.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch element {} ", ele);
             var opt = new ElementHandle.DblclickOptions();
             if (button != null) opt.button = MouseButton.valueOf(button);
@@ -709,10 +1226,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(ElementPrefix + ele, ElementHandle.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch element {} ", ele);
             var opt = new ElementHandle.CheckOptions();
             if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
@@ -751,10 +1267,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(ElementPrefix + ele, ElementHandle.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch element {} ", ele);
             var opt = new ElementHandle.HoverOptions();
             if (x != null || y != null) opt.setPosition(x == null ? 0 : x, y == null ? 0 : y);
@@ -783,10 +1298,9 @@ public interface Playwrights {
         }
 
         @Override
-        public void execute(Context ctx) {
+        public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
             var p = ctx.require(ElementPrefix + ele, ElementHandle.class);
-            var log = ctx.log();
             if (log.isTraceEnabled()) log.trace("fetch element {} ", ele);
             var opt = new ElementHandle.FillOptions();
             if (timeout != null) opt.setTimeout(timeout);

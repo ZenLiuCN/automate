@@ -8,6 +8,7 @@ import cn.zenliu.automate.notation.Reader;
 import org.slf4j.Logger;
 
 import java.lang.reflect.*;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -32,14 +33,32 @@ public interface Action {
         return Objects.requireNonNull(ACTIONS.get(act), () -> "not exists action '" + act + "'").make(def);
     }
 
-    void execute(Context ctx);
+    void execute(Context ctx, Logger log);
 
     default Optional<Exception> run(Context ctx) {
+        var log = ctx.log();
+        var trace = log.isTraceEnabled();
+        Set<String> keys = null;
+        if (trace) {
+            keys = new HashSet<>(ctx.vars().keySet());
+        }
         try {
-            execute(ctx);
+
+            if (trace) {
+                log.trace("will execute {}", action());
+            }
+            execute(ctx, log);
             return Optional.empty();
         } catch (Exception ex) {
+            log.error("execute {}", action(), ex);
             return Optional.of(ex);
+        }finally {
+            if(trace){
+                var fk=keys;
+                ctx.vars().forEach((k,v)->{
+                    if(!fk.contains(k)) log.trace("write {}: {}",k,v);
+                });
+            }
         }
     }
 
@@ -137,7 +156,7 @@ public interface Action {
 
     default Action make(Conf c) {
         var fn = FAC.computeIfAbsent(action(), a -> buildFactory(a, this.getClass()));
-        return  fn.apply(c);
+        return fn.apply(c);
     }
 
     static Function<Conf, Action> buildFactory(String name, Class<?> c) {
@@ -191,11 +210,22 @@ public interface Action {
         var t = arg.type;
         if (t.isAssignableFrom(Long.class)) return Conf.readLong(name, req);
         if (t.isAssignableFrom(long.class)) return Conf.readLong(name, true);
+
         if (t.isAssignableFrom(Integer.class)) return Conf.readInteger(name, req);
         if (t.isAssignableFrom(int.class)) return Conf.readInteger(name, true);
+
         if (t.isAssignableFrom(String.class)) return Conf.readString(name, req);
+
         if (t.isAssignableFrom(Boolean.class)) return Conf.readBoolean(name, req);
         if (t.isAssignableFrom(boolean.class)) return Conf.readBoolean(name, true);
+
+        if (t.isAssignableFrom(Double.class)) return Conf.readDouble(name, req);
+        if (t.isAssignableFrom(double.class)) return Conf.readDouble(name, true);
+
+        if (t.isAssignableFrom(Float.class)) return Conf.readFloat(name, req);
+        if (t.isAssignableFrom(float.class)) return Conf.readFloat(name, true);
+
+        if (t.isAssignableFrom(Duration.class)) return Conf.readDuration(name, req);
         throw new IllegalArgumentException("unsupported type " + t + ", try define user reader");
     }
 

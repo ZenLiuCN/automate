@@ -31,9 +31,14 @@ public interface Context extends AutoCloseable {
         var q = closableQueue();
         var c = q.poll();
         while (c != null) {
-            if (c instanceof Playwright) continue;
-            if (c instanceof Browser) continue;
-            c.close();
+            if (c instanceof Playwright) {
+
+            } else if (c instanceof Browser) {
+
+            } else {
+                c.close();
+            }
+
             c = q.poll();
         }
     }
@@ -183,8 +188,7 @@ public interface Context extends AutoCloseable {
             }
 
             @Override
-            public void execute(Context ctx) {
-                var log = ctx.log();
+            public void execute(Context ctx,Logger log) {
                 if (ctx.log().isTraceEnabled()) {
                     log.trace("execute case {}", this);
                 }
@@ -228,7 +232,7 @@ public interface Context extends AutoCloseable {
                 return List.of();
             }
             if (log.isTraceEnabled()) log.trace("parse scripts {}", (Object) scripts);
-            return  Arrays
+            return Arrays
                     .stream(scripts)
                     .map(this::parseFile)
                     .toList();
