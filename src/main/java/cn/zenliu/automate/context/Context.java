@@ -159,7 +159,7 @@ public interface Context extends AutoCloseable {
             }
         }
 
-        public Action parseFile(String file) {
+        public Case parseFile(String file) {
             if (log.isTraceEnabled()) log.trace("parse case file: {} ", file);
             var fx = new File(file);
             var name = fx.getName().transform(x -> x.substring(0, x.length() - 5));
@@ -172,10 +172,11 @@ public interface Context extends AutoCloseable {
             var actions = f.objects("actions").orElseThrow(() -> new IllegalArgumentException("missing required actions"));
             if (actions.isEmpty()) throw new IllegalArgumentException("actions should not be empty");
             actions.forEach(c -> action.add(Action.parseConf(c)));
-            return new Case(f.bool("cleanup").orElse(false), file, name, action, vars);
+            return new Case(f.integer("order").orElse(0), f.bool("cleanup").orElse(false), file, name, action, vars);
         }
 
         record Case(
+                int order,
                 boolean cleanup,
                 String file,
                 String name,
@@ -262,6 +263,8 @@ public interface Context extends AutoCloseable {
             return Arrays
                     .stream(scripts)
                     .map(this::parseFile)
+                    .sorted(Comparator.comparingInt(Case::order))
+                    .map(x -> (Action) x)
                     .toList();
         }
 
@@ -273,6 +276,8 @@ public interface Context extends AutoCloseable {
                         .filter(Files::isRegularFile)
                         .filter(x -> x.toFile().getName().endsWith(".conf"))
                         .map(x -> parseFile(x.toString()))
+                        .sorted(Comparator.comparingInt(Case::order))
+                        .map(x -> (Action) x)
                         .toList();
             }
         }

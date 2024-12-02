@@ -427,6 +427,10 @@ public interface Conf extends Config {
         return maybe(path, Config::getObject).map(c -> Conf.of(c.toConfig()));
     }
 
+    default Optional<Integer> integer(String path) {
+        return maybe(path, Config::getInt);
+    }
+
     default Optional<Boolean> bool(String path) {
         return maybe(path, Config::getBoolean);
     }
