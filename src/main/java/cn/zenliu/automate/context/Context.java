@@ -172,10 +172,11 @@ public interface Context extends AutoCloseable {
             var actions = f.objects("actions").orElseThrow(() -> new IllegalArgumentException("missing required actions"));
             if (actions.isEmpty()) throw new IllegalArgumentException("actions should not be empty");
             actions.forEach(c -> action.add(Action.parseConf(c)));
-            return new Case(file, name, action, vars);
+            return new Case(f.bool("cleanup").orElse(false), file, name, action, vars);
         }
 
         record Case(
+                boolean cleanup,
                 String file,
                 String name,
                 List<Action> actions,
@@ -188,22 +189,48 @@ public interface Context extends AutoCloseable {
             }
 
             @Override
-            public void execute(Context ctx,Logger log) {
-                if (ctx.log().isTraceEnabled()) {
-                    log.trace("execute case {}", this);
+            public void execute(Context ctx, Logger log) {
+                var trace = log.isTraceEnabled();
+                if (trace) {
+                    log.trace("will execute case {}", this);
+                }
+                final Set<String> allKeys;
+                if (cleanup) {
+                    allKeys = new HashSet<>(ctx.vars().keySet());
+                } else {
+                    allKeys = null;
                 }
                 ctx.vars().putAll(vars);
-                for (var act : actions) {
-                    if (ctx.log().isTraceEnabled()) {
-                        log.trace("execute case {} action {}", name, act.action());
+                Set<String> keys = null;
+                try {
+                    for (var act : actions) {
+                        if (trace) {
+                            log.trace("will execute action {}.{}", name, act.action());
+                            keys = new HashSet<>(ctx.vars().keySet());
+                        }
+                        act.execute(ctx, log);
+                        if (trace) {
+                            var fk = keys;
+                            ctx.vars().forEach((k, v) -> {
+                                if (!fk.contains(k)) log.trace("{}.{} write {} : {}", name, act.action(), k, v);
+                            });
+                            log.trace("{}.{} done", name, act.action());
+                        }
                     }
-                    var err = act.run(ctx);
-                    if (err.isPresent()) {
-                        var ex = err.get();
-                        throw new RuntimeException("execute '" + name + "." + act.action() + "' failed: " + ex.getMessage(), ex);
+                } finally {
+                    if (trace) {
+                        log.trace("case {} done", name);
+                    }
+                    if (cleanup) {
+                        var to = new HashSet<String>();
+                        ctx.vars().keySet().forEach(v -> {
+                            if (!allKeys.contains(v)) to.add(v);
+                        });
+                        to.forEach(ctx::invalidate);
                     }
                 }
             }
+
         }
 
         public Iterable<Action> use(Conf global) {

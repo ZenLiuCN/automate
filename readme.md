@@ -13,6 +13,7 @@
 
 1. actions: an ordered list of actions to run.
 2. order: an integer that as natural order of cases.
+3. cleanup: a boolean value that remove all context variables after execution.
 
 ## Action schema
 

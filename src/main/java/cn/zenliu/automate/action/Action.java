@@ -43,7 +43,6 @@ public interface Action {
             keys = new HashSet<>(ctx.vars().keySet());
         }
         try {
-
             if (trace) {
                 log.trace("will execute {}", action());
             }
@@ -52,12 +51,13 @@ public interface Action {
         } catch (Exception ex) {
             log.error("execute {}", action(), ex);
             return Optional.of(ex);
-        }finally {
-            if(trace){
-                var fk=keys;
-                ctx.vars().forEach((k,v)->{
-                    if(!fk.contains(k)) log.trace("write {}: {}",k,v);
+        } finally {
+            if (trace) {
+                var fk = keys;
+                ctx.vars().forEach((k, v) -> {
+                    if (!fk.contains(k)) log.trace("write {}: {}", k, v);
                 });
+                log.trace("{} done", action());
             }
         }
     }
