@@ -12,6 +12,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.*;
 import org.slf4j.Logger;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 
@@ -155,11 +156,13 @@ public interface Playwrights {
             @Info(value = "window width", optional = true)
             Integer width,
             @Info(value = "window height", optional = true)
-            Integer height
+            Integer height,
+            @Info(value = "default timeout for operation on page", optional = true)
+            Duration timeout
     ) implements Action {
 
         public PageOpen() {
-            this(null, null, null, null, null, null, null, null, null, null, null);
+            this(null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         @Override
@@ -185,6 +188,7 @@ public interface Playwrights {
             }
             var c = p.newPage(opt);
             if (this.url != null && !this.url.isBlank()) c.navigate(url);
+            if (timeout != null) c.setDefaultTimeout(timeout.toMillis());
             ctx.put(name, c);
         }
     }
@@ -1082,7 +1086,7 @@ public interface Playwrights {
         @Override
         public void execute(Context ctx, Logger log) {
             ctx.mustExists(BROWSER);
-            var p = ctx.require(ElementPrefix + locate, Locator.class);
+            var p = ctx.require(LocatorPrefix + locate, Locator.class);
             if (log.isTraceEnabled()) log.trace("fill locate {} ", locate);
             var opt = new Locator.FillOptions();
             if (timeout != null) opt.setTimeout(timeout);
